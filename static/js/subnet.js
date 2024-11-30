@@ -164,10 +164,7 @@ class SubnetCalculator {
         const tbody = this.subnetTable.querySelector('tbody');
         tbody.innerHTML = '';
 
-        // Update visualization
-        if (window.visualizer) {
-            window.visualizer.updateVisualization(this.subnets);
-        }
+        
 
         this.subnets.forEach((subnet, index) => {
             const row = document.createElement('tr');
