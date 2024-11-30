@@ -123,34 +123,37 @@ class SubnetCalculator {
     }
 
     joinSubnets(index) {
-        // Can't join if it's the last subnet or subnets have different mask bits
-        if (index + 1 >= this.subnets.length) return;
-        
         const subnet1 = this.subnets[index];
-        const subnet2 = this.subnets[index + 1];
-        
-        if (subnet1.maskBits !== subnet2.maskBits) return;
-        
-        // Check if subnets are adjacent
-        const network1 = subnet1.networkAddress.split('/')[0].split('.').map(Number);
-        const network2 = subnet2.networkAddress.split('/')[0].split('.').map(Number);
-        
-        // Calculate the network block size
+        const targetMaskBits = subnet1.maskBits - 1;
+        if (targetMaskBits < 0) return;
+
+        // Find all consecutive subnets that can be joined
+        let endIndex = index + 1;
+        const startIp = this.ipToNumber(subnet1.networkAddress.split('/')[0]);
         const blockSize = Math.pow(2, 32 - subnet1.maskBits);
         
-        // Convert IP to numeric value for comparison
-        const ip1 = network1.reduce((acc, octet, i) => acc + (octet << (24 - (i * 8))), 0);
-        const ip2 = network2.reduce((acc, octet, i) => acc + (octet << (24 - (i * 8))), 0);
-        
-        // Check if networks are adjacent
-        if (ip2 - ip1 !== blockSize) return;
-        
-        // Networks can be joined
-        const newMaskBits = subnet1.maskBits - 1;
-        const joinedSubnet = this.getNetworkDetails(subnet1.networkAddress.split('/')[0], newMaskBits);
-        
-        this.subnets.splice(index, 2, joinedSubnet);
+        while (endIndex < this.subnets.length) {
+            const nextSubnet = this.subnets[endIndex];
+            if (nextSubnet.maskBits !== subnet1.maskBits) break;
+            
+            const nextIp = this.ipToNumber(nextSubnet.networkAddress.split('/')[0]);
+            if (nextIp - startIp !== blockSize * (endIndex - index)) break;
+            
+            endIndex++;
+        }
+
+        // Check if we have enough consecutive subnets to join
+        const subnetsNeeded = Math.pow(2, 1); // We need 2 subnets to join into one
+        if (endIndex - index < subnetsNeeded) return;
+
+        // Join the subnets
+        const joinedSubnet = this.getNetworkDetails(subnet1.networkAddress.split('/')[0], targetMaskBits);
+        this.subnets.splice(index, subnetsNeeded, joinedSubnet);
         this.updateTable();
+    }
+
+    ipToNumber(ip) {
+        return ip.split('.').reduce((acc, octet, i) => acc + (Number(octet) << (24 - (i * 8))), 0);
     }
 
     updateTable() {
