@@ -13,8 +13,16 @@ class SubnetCalculator {
     }
 
     attachEventListeners() {
-        this.networkInput.addEventListener('input', () => this.calculateSubnet());
-        this.maskInput.addEventListener('input', () => this.calculateSubnet());
+        this.networkInput.addEventListener('input', () => {
+            if (this.networkInput.value && this.maskInput.value) {
+                this.calculateSubnet();
+            }
+        });
+        this.maskInput.addEventListener('input', () => {
+            if (this.networkInput.value && this.maskInput.value) {
+                this.calculateSubnet();
+            }
+        });
         this.columnToggles.forEach(toggle => {
             toggle.addEventListener('change', () => this.updateTableDisplay());
         });
@@ -31,6 +39,9 @@ class SubnetCalculator {
         const networkDetails = this.getNetworkDetails(network, maskBits);
         this.subnets = [networkDetails];
         this.updateTable();
+        
+        // Update URL for bookmarking
+        updateUrlWithNetwork(network, maskBits);
     }
 
     isValidIPv4(ip) {
