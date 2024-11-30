@@ -129,16 +129,27 @@ class SubnetCalculator {
         const nextSubnet = this.subnets[index + 1];
         if (subnet.maskBits !== nextSubnet.maskBits) return;
         
-        // Check if these subnets can be joined (they should be consecutive)
-        const network1 = this.ipToNumber(subnet.networkAddress.split('/')[0]);
-        const network2 = this.ipToNumber(nextSubnet.networkAddress.split('/')[0]);
+        // Extract network addresses without mask bits
+        const network1 = subnet.networkAddress.split('/')[0];
+        const network2 = nextSubnet.networkAddress.split('/')[0];
+        
+        // Convert to numbers for comparison
+        const num1 = this.ipToNumber(network1);
+        const num2 = this.ipToNumber(network2);
+        
+        // Calculate the size of the current subnet blocks
         const blockSize = Math.pow(2, 32 - subnet.maskBits);
         
-        if (network2 - network1 !== blockSize) return;
+        // Check if these subnets are adjacent and can be joined
+        if (num2 - num1 !== blockSize) return;
         
-        // Join the subnets
+        // Check if the first subnet starts on a valid boundary for the joined subnet
         const newMaskBits = subnet.maskBits - 1;
-        const joinedSubnet = this.getNetworkDetails(subnet.networkAddress.split('/')[0], newMaskBits);
+        const boundaryMask = ~(Math.pow(2, 32 - newMaskBits) - 1);
+        if ((num1 & boundaryMask) !== num1) return;
+        
+        // Join the subnets using the first network address
+        const joinedSubnet = this.getNetworkDetails(network1, newMaskBits);
         
         // Replace the two subnets with the joined one
         this.subnets.splice(index, 2, joinedSubnet);
