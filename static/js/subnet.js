@@ -124,31 +124,48 @@ class SubnetCalculator {
 
     joinSubnets(index) {
         const subnet1 = this.subnets[index];
-        const targetMaskBits = subnet1.maskBits - 1;
-        if (targetMaskBits < 0) return;
-
-        // Find all consecutive subnets that can be joined
+        const baseNetwork = subnet1.networkAddress.split('/')[0];
+        const baseIp = this.ipToNumber(baseNetwork);
+        
+        // Find all subnets that are part of this network
+        const subnetRange = Math.pow(2, 32 - subnet1.maskBits);
+        const endIp = baseIp + subnetRange;
+        
+        // Find all subnets that fall within this range
         let endIndex = index + 1;
-        const startIp = this.ipToNumber(subnet1.networkAddress.split('/')[0]);
-        const blockSize = Math.pow(2, 32 - subnet1.maskBits);
+        let currentMaskBits = null;
+        let consecutiveCount = 1;
         
         while (endIndex < this.subnets.length) {
             const nextSubnet = this.subnets[endIndex];
-            if (nextSubnet.maskBits !== subnet1.maskBits) break;
-            
             const nextIp = this.ipToNumber(nextSubnet.networkAddress.split('/')[0]);
-            if (nextIp - startIp !== blockSize * (endIndex - index)) break;
+            
+            // If we've gone beyond our subnet range, stop
+            if (nextIp >= endIp) break;
+            
+            // Keep track of subnets with the same mask bits
+            if (currentMaskBits === null) {
+                currentMaskBits = nextSubnet.maskBits;
+                consecutiveCount = 1;
+            } else if (currentMaskBits === nextSubnet.maskBits) {
+                consecutiveCount++;
+            } else {
+                // If we find a different mask bit size, reset counter
+                currentMaskBits = nextSubnet.maskBits;
+                consecutiveCount = 1;
+            }
             
             endIndex++;
         }
-
-        // Check if we have enough consecutive subnets to join
-        const subnetsNeeded = Math.pow(2, 1); // We need 2 subnets to join into one
-        if (endIndex - index < subnetsNeeded) return;
-
-        // Join the subnets
-        const joinedSubnet = this.getNetworkDetails(subnet1.networkAddress.split('/')[0], targetMaskBits);
-        this.subnets.splice(index, subnetsNeeded, joinedSubnet);
+        
+        if (endIndex <= index + 1) return; // Nothing to join
+        
+        // Join all subnets in the range
+        const targetMaskBits = subnet1.maskBits - Math.log2(endIndex - index);
+        if (targetMaskBits < 0) return;
+        
+        const joinedSubnet = this.getNetworkDetails(baseNetwork, targetMaskBits);
+        this.subnets.splice(index, endIndex - index, joinedSubnet);
         this.updateTable();
     }
 
