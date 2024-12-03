@@ -58,12 +58,22 @@ class SubnetCalculator {
         return bits >= 0 && bits <= 32;
     }
 
+    isPrivateIP(ip) {
+        const parts = ip.split('.').map(Number);
+        // Check for private IP ranges
+        if (parts[0] === 10) return true; // 10.0.0.0 to 10.255.255.255
+        if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true; // 172.16.0.0 to 172.31.255.255
+        if (parts[0] === 192 && parts[1] === 168) return true; // 192.168.0.0 to 192.168.255.255
+        return false;
+    }
+
     getNetworkDetails(network, maskBits) {
         const networkParts = network.split('.').map(Number);
         const mask = this.calculateSubnetMask(maskBits);
         const networkAddr = this.calculateNetworkAddress(networkParts, mask);
         const broadcast = this.calculateBroadcast(networkAddr, maskBits);
         const usableHosts = Math.pow(2, 32 - maskBits) - 2;
+        const isPrivate = this.isPrivateIP(networkAddr.join('.'));
 
         return {
             networkAddress: networkAddr.join('.') + '/' + maskBits,
@@ -71,7 +81,8 @@ class SubnetCalculator {
             range: `${networkAddr.join('.')} - ${broadcast.join('.')}`,
             usableRange: this.calculateUsableRange(networkAddr, broadcast),
             hosts: usableHosts,
-            maskBits: maskBits
+            maskBits: maskBits,
+            addressSpace: isPrivate ? 'Private' : 'Public'
         };
     }
 
@@ -176,6 +187,7 @@ class SubnetCalculator {
                 subnet.range,
                 subnet.usableRange,
                 subnet.hosts,
+                subnet.addressSpace,
                 `<button class="divide-btn btn btn-sm btn-outline-primary" onclick="calculator.divideSubnet(${index})">Divide</button>`,
                 `<button class="join-btn btn btn-sm btn-outline-secondary" onclick="calculator.joinSubnets(${index})">Join</button>`
             ];
